@@ -10,7 +10,7 @@ namespace Succinct
         ulong[] bitFlgArray = new ulong[BIT_FLG_ARRAY_LENGTH];
         // Indices which count the number of bit-flgs. Number of flgs has to be fewer than 1-65535
         // If the number of bit-flgs is lower than 256 use byte rather than ushort.
-        ushort[] bitCountArray = new ushort[BIT_FLG_ARRAY_LENGTH];
+        ushort[] flgCountArray = new ushort[BIT_FLG_ARRAY_LENGTH];
         // Squeeze all data into this list
         List<T> denseDataList = new List<T>();
 
@@ -25,10 +25,6 @@ namespace Succinct
             denseDataList.Add(value);
         }
 
-        // Actually this is an ugly solution because you can define GetValue method
-        // and switch conditions depends on Types like "if(typeof(T) == typeof(int))"
-        // but I didn't want to use "if" inside these methods so I changed the name of the method.
-
         // This method throws exception if type T is not numeric
         public T GetValue_Numeric(int idx)
         {
@@ -41,6 +37,20 @@ namespace Succinct
             return isDatumExists(idx) ? denseDataList[rank(idx) - 1] : (T)(dynamic)null;
         }
 
+        public T GetValue(int idx)
+        {
+            var type = typeof(T);
+            if (type == typeof(int) || type == typeof(double) || type == typeof(short) || type == typeof(float)
+                || type == typeof(uint) || type == typeof(ushort) || type == typeof(long) || type == typeof(ulong))
+            {
+                return isDatumExists(idx) ? denseDataList[rank(idx) - 1] : (T)(dynamic)0;
+            }
+            else
+            {
+                return isDatumExists(idx) ? denseDataList[rank(idx) - 1] : (T)(dynamic)null;
+            }
+        }
+
         bool isDatumExists(int idx)
         {
             var bitFlg = 0x1UL << (idx % 64);
@@ -49,22 +59,22 @@ namespace Succinct
             return flg != 0x0UL;
         }
 
-        
+
         // Rank tells which index you should get from dense data array
         ushort rank(int idx)
         {
             ulong bit_mask = ulong.MaxValue; // all 1
             if (idx % 64 < 63) bit_mask = (0x1UL << (idx % 64 + 1)) - 0x1UL;
-            return (ushort)(bitCountArray[idx / 64] + popCount64(bitFlgArray[idx / 64] & bit_mask));
+            return (ushort)(flgCountArray[idx / 64] + popCount64(bitFlgArray[idx / 64] & bit_mask));
         }
 
         public void Build()
         {
             // count flags that have true values
-            bitCountArray[0] = 0; // No flg is true before idx 0
+            flgCountArray[0] = 0; // No flg is true before idx 0
             for (int array_idx = 0; array_idx < BIT_FLG_ARRAY_LENGTH - 1; array_idx++)
             {
-                bitCountArray[array_idx + 1] = (ushort)(bitCountArray[array_idx] + popCount64(bitFlgArray[array_idx]));
+                flgCountArray[array_idx + 1] = (ushort)(flgCountArray[array_idx] + popCount64(bitFlgArray[array_idx]));
             }
         }
         // This method simply counts the number of true flags in 64bit(= x)
