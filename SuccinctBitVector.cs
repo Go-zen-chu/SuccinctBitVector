@@ -4,17 +4,39 @@ namespace Succinct
 {
     public class SuccinctBitVector<T>
     {
-        const int BIT_FLG_LENGTH = 25000; // range of values(should be less than max range of int which is 2,147,483,647)
-        const int BIT_FLG_ARRAY_LENGTH = BIT_FLG_LENGTH / 32; // 32 = 4byte which is type long's size
+        int rangeOfIndex = 40000;
+        int columnLength = 40000 / 32 + 1;
+        public int RangeOfIndex
+        {
+            get { return rangeOfIndex; }
+            set
+            {
+                rangeOfIndex = value;
+                columnLength = rangeOfIndex / 32 + 1; // 32 = 4byte which is type long's size
+                bitFlgArray = new ulong[columnLength];
+                flgCountArray = new ushort[columnLength];
+            }
+        }
+
         // bit-flg array which describe whether the value exists in specified index
-        ulong[] bitFlgArray = new ulong[BIT_FLG_ARRAY_LENGTH];
-        // Indices which count the number of bit-flgs. Number of flgs has to be fewer than 1-65535
+        ulong[] bitFlgArray;
+        // Count the number of bit-flgs. Number of values has to be fewer than 1-65535 because the type is ushort.
         // If the number of bit-flgs is lower than 256 use byte rather than ushort.
-        ushort[] flgCountArray = new ushort[BIT_FLG_ARRAY_LENGTH];
+        ushort[] flgCountArray;
         // Squeeze all data into this list
         List<T> denseDataList = new List<T>();
 
-        public SuccinctBitVector() { }
+
+        public SuccinctBitVector()
+        {
+            bitFlgArray = new ulong[columnLength];
+            flgCountArray = new ushort[columnLength];
+        }
+
+        public SuccinctBitVector(int rangeOfIndex)
+        {
+            RangeOfIndex = rangeOfIndex;
+        }
 
         public void SetValue(int idx, T value)
         {
@@ -53,6 +75,7 @@ namespace Succinct
 
         bool isDatumExists(int idx)
         {
+            if (idx < 0) return false;
             var bitFlg = 0x1UL << (idx % 64);
             // check whether the flg at the idx is 1
             var flg = bitFlgArray[idx / 64] & bitFlg;
@@ -72,7 +95,7 @@ namespace Succinct
         {
             // count flags that have true values
             flgCountArray[0] = 0; // No flg is true before idx 0
-            for (int array_idx = 0; array_idx < BIT_FLG_ARRAY_LENGTH - 1; array_idx++)
+            for (int array_idx = 0; array_idx < columnLength - 1; array_idx++)
             {
                 flgCountArray[array_idx + 1] = (ushort)(flgCountArray[array_idx] + popCount64(bitFlgArray[array_idx]));
             }
